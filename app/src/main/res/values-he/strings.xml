@@ -1,8 +1,8 @@
 <resources>
-    <string name="app_name">Simple Music Player</string>
-    <string name="app_launcher_name">Music Player</string>
-    <string name="playlist_empty">Your playlist is empty</string>
-    <string name="rename_song">Rename song</string>
+    <string name="app_name">נגן מוזיקה פשוט</string>
+    <string name="app_launcher_name">נגן מוזיקה</string>
+    <string name="playlist_empty">הפלייליסט שלך ריק</string>
+    <string name="rename_song">לשנות את שם השיר</string>
     <string name="rename_song_error">An error occurred during the renaming</string>
     <string name="rename_song_empty">Please fill in all fields</string>
     <string name="enable_song_repetition">Repeat current song</string>
