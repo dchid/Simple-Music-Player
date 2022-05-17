@@ -24,11 +24,12 @@ class MyWidgetProvider : AppWidgetProvider() {
     }
 
     private fun performUpdate(context: Context) {
-        val appWidgetManager = AppWidgetManager.getInstance(context)
+        val appWidgetManager = AppWidgetManager.getInstance(context) ?: return
         appWidgetManager.getAppWidgetIds(getComponentName(context)).forEach {
             val views = getRemoteViews(appWidgetManager, context, it)
             updateColors(context, views)
             setupButtons(context, views)
+            updateSongInfo(views, MusicService.mCurrTrack)
             updatePlayPauseButton(context, views, MusicService.getIsPlaying())
             appWidgetManager.updateAppWidget(it, views)
         }
@@ -43,8 +44,17 @@ class MyWidgetProvider : AppWidgetProvider() {
         when (action) {
             TRACK_CHANGED -> songChanged(context, intent)
             TRACK_STATE_CHANGED -> songStateChanged(context, intent)
-            PREVIOUS, PLAYPAUSE, NEXT -> context.sendIntent(action)
+            PREVIOUS, PLAYPAUSE, NEXT -> handlePlayerControls(context, action)
             else -> super.onReceive(context, intent)
+        }
+    }
+
+    private fun handlePlayerControls(context: Context, action: String) {
+        if (MusicService.mCurrTrack == null) {
+            val intent = context.getLaunchIntent() ?: Intent(context, SplashActivity::class.java)
+            context.startActivity(intent)
+        } else {
+            context.sendIntent(action)
         }
     }
 
@@ -57,22 +67,23 @@ class MyWidgetProvider : AppWidgetProvider() {
     private fun setupIntent(context: Context, views: RemoteViews, action: String, id: Int) {
         val intent = Intent(context, MyWidgetProvider::class.java)
         intent.action = action
-        val pendingIntent = PendingIntent.getBroadcast(context, 0, intent, 0)
+        val pendingIntent = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_IMMUTABLE)
         views.setOnClickPendingIntent(id, pendingIntent)
     }
 
     private fun setupAppOpenIntent(context: Context, views: RemoteViews, id: Int) {
         val intent = context.getLaunchIntent() ?: Intent(context, SplashActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(context, 0, intent, 0)
+        val pendingIntent = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE)
         views.setOnClickPendingIntent(id, pendingIntent)
     }
 
     private fun songChanged(context: Context, intent: Intent) {
-        val song = intent.getSerializableExtra(NEW_TRACK) as? Track ?: return
-        val appWidgetManager = AppWidgetManager.getInstance(context)
+        val appWidgetManager = AppWidgetManager.getInstance(context) ?: return
+        val song = intent.getSerializableExtra(NEW_TRACK) as? Track
         appWidgetManager.getAppWidgetIds(getComponentName(context)).forEach {
             val views = getRemoteViews(appWidgetManager, context, it)
             updateSongInfo(views, song)
+            updatePlayPauseButton(context, views, MusicService.getIsPlaying())
             appWidgetManager.updateAppWidget(it, views)
         }
     }
@@ -84,7 +95,7 @@ class MyWidgetProvider : AppWidgetProvider() {
 
     private fun songStateChanged(context: Context, intent: Intent) {
         val isPlaying = intent.getBooleanExtra(IS_PLAYING, false)
-        val appWidgetManager = AppWidgetManager.getInstance(context)
+        val appWidgetManager = AppWidgetManager.getInstance(context) ?: return
         appWidgetManager.getAppWidgetIds(getComponentName(context)).forEach {
             val views = getRemoteViews(appWidgetManager, context, it)
             updatePlayPauseButton(context, views, isPlaying)

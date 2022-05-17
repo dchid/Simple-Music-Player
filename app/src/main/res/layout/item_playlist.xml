@@ -9,7 +9,10 @@
     android:clickable="true"
     android:focusable="true"
     android:foreground="@drawable/selector"
-    android:padding="@dimen/activity_margin">
+    android:paddingStart="@dimen/medium_margin"
+    android:paddingTop="@dimen/activity_margin"
+    android:paddingEnd="@dimen/activity_margin"
+    android:paddingBottom="@dimen/activity_margin">
 
     <com.simplemobiletools.commons.views.MyTextView
         android:id="@+id/playlist_title"
@@ -36,6 +39,6 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/playlist_title"
-        tools:text="5 tracks" />
+        tools:text="5 Tracks" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

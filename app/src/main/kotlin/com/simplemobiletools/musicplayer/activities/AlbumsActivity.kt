@@ -5,7 +5,10 @@ import android.os.Bundle
 import android.view.Menu
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.simplemobiletools.commons.extensions.areSystemAnimationsEnabled
 import com.simplemobiletools.commons.extensions.getFormattedDuration
+import com.simplemobiletools.commons.extensions.getProperPrimaryColor
+import com.simplemobiletools.commons.extensions.hideKeyboard
 import com.simplemobiletools.musicplayer.R
 import com.simplemobiletools.musicplayer.adapters.AlbumsTracksAdapter
 import com.simplemobiletools.musicplayer.extensions.getAlbumTracksSync
@@ -23,7 +26,7 @@ import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
 
-// Artists -> Albums -> Tracks
+// Artists -> Albums -> Tracks
 class AlbumsActivity : SimpleActivity() {
     private var bus: EventBus? = null
 
@@ -34,9 +37,11 @@ class AlbumsActivity : SimpleActivity() {
         bus = EventBus.getDefault()
         bus!!.register(this)
 
+        albums_fastscroller.updateColors(getProperPrimaryColor())
+
         val artistType = object : TypeToken<Artist>() {}.type
         val artist = Gson().fromJson<Artist>(intent.getStringExtra(ARTIST), artistType)
-        title = artist.title
+        title = artist.title.replace("<", "&lt;")
 
         getAlbums(artist) { albums ->
             val listItems = ArrayList<ListItem>()
@@ -59,7 +64,8 @@ class AlbumsActivity : SimpleActivity() {
             listItems.addAll(tracksToAdd)
 
             runOnUiThread {
-                val adapter = AlbumsTracksAdapter(this, listItems, albums_list, albums_fastscroller) {
+                AlbumsTracksAdapter(this, listItems, albums_list) {
+                    hideKeyboard()
                     if (it is Album) {
                         Intent(this, TracksActivity::class.java).apply {
                             putExtra(ALBUM, Gson().toJson(it))
@@ -78,19 +84,14 @@ class AlbumsActivity : SimpleActivity() {
                     albums_list.adapter = this
                 }
 
-                albums_list.scheduleLayoutAnimation()
-                albums_fastscroller.setViews(albums_list) {
-                    val item = adapter.items.getOrNull(it)
-                    if (item is Track) {
-                        albums_fastscroller.updateBubbleText(item.title)
-                    } else if (item is Album) {
-                        albums_fastscroller.updateBubbleText(item.title)
-                    }
+                if (areSystemAnimationsEnabled) {
+                    albums_list.scheduleLayoutAnimation()
                 }
             }
         }
 
         current_track_bar.setOnClickListener {
+            hideKeyboard()
             Intent(this, TrackActivity::class.java).apply {
                 startActivity(this)
             }

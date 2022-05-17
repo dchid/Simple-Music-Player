@@ -7,6 +7,7 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.CenterCrop
 import com.bumptech.glide.load.resource.bitmap.RoundedCorners
 import com.bumptech.glide.request.RequestOptions
+import com.qtalk.recyclerviewfastscroller.RecyclerViewFastScroller
 import com.simplemobiletools.commons.adapters.MyRecyclerViewAdapter
 import com.simplemobiletools.commons.dialogs.ConfirmationDialog
 import com.simplemobiletools.commons.extensions.beGone
@@ -14,14 +15,11 @@ import com.simplemobiletools.commons.extensions.beVisible
 import com.simplemobiletools.commons.extensions.getColoredDrawableWithColor
 import com.simplemobiletools.commons.extensions.getFormattedDuration
 import com.simplemobiletools.commons.helpers.ensureBackgroundThread
-import com.simplemobiletools.commons.views.FastScroller
 import com.simplemobiletools.commons.views.MyRecyclerView
 import com.simplemobiletools.musicplayer.R
 import com.simplemobiletools.musicplayer.activities.SimpleActivity
-import com.simplemobiletools.musicplayer.extensions.addTracksToPlaylist
-import com.simplemobiletools.musicplayer.extensions.addTracksToQueue
-import com.simplemobiletools.musicplayer.extensions.deleteTracks
-import com.simplemobiletools.musicplayer.extensions.getAlbumTracksSync
+import com.simplemobiletools.musicplayer.dialogs.EditDialog
+import com.simplemobiletools.musicplayer.extensions.*
 import com.simplemobiletools.musicplayer.models.Album
 import com.simplemobiletools.musicplayer.models.AlbumSection
 import com.simplemobiletools.musicplayer.models.ListItem
@@ -32,8 +30,10 @@ import kotlinx.android.synthetic.main.item_track.view.*
 import java.util.*
 
 // we show both albums and individual tracks here
-class AlbumsTracksAdapter(activity: SimpleActivity, val items: ArrayList<ListItem>, recyclerView: MyRecyclerView, fastScroller: FastScroller,
-                          itemClick: (Any) -> Unit) : MyRecyclerViewAdapter(activity, recyclerView, fastScroller, itemClick) {
+class AlbumsTracksAdapter(
+    activity: SimpleActivity, val items: ArrayList<ListItem>, recyclerView: MyRecyclerView,
+    itemClick: (Any) -> Unit
+) : MyRecyclerViewAdapter(activity, recyclerView, itemClick), RecyclerViewFastScroller.OnPopupTextUpdate {
 
     private val ITEM_SECTION = 0
     private val ITEM_ALBUM = 1
@@ -92,7 +92,10 @@ class AlbumsTracksAdapter(activity: SimpleActivity, val items: ArrayList<ListIte
         when (id) {
             R.id.cab_add_to_playlist -> addToPlaylist()
             R.id.cab_add_to_queue -> addToQueue()
+            R.id.cab_properties -> showProperties()
             R.id.cab_delete -> askConfirmDelete()
+            R.id.cab_rename -> displayEditDialog()
+            R.id.cab_select_all -> selectAll()
         }
     }
 
@@ -126,6 +129,15 @@ class AlbumsTracksAdapter(activity: SimpleActivity, val items: ArrayList<ListIte
                 finishActMode()
             }
         }
+    }
+
+    private fun showProperties() {
+        val selectedTracks = getSelectedTracks()
+        if (selectedTracks.isEmpty()) {
+            return
+        }
+
+        activity.showTrackProperties(selectedTracks)
     }
 
     private fun askConfirmDelete() {
@@ -178,6 +190,8 @@ class AlbumsTracksAdapter(activity: SimpleActivity, val items: ArrayList<ListIte
             album_frame?.isSelected = selectedKeys.contains(album.hashCode())
             album_title.text = album.title
             album_title.setTextColor(textColor)
+            album_tracks.text = resources.getQuantityString(R.plurals.tracks_plural, album.trackCnt, album.trackCnt)
+            album_tracks.setTextColor(textColor)
 
             val options = RequestOptions()
                 .error(placeholderBig)
@@ -220,6 +234,31 @@ class AlbumsTracksAdapter(activity: SimpleActivity, val items: ArrayList<ListIte
         view.apply {
             item_section.text = section.title
             item_section.setTextColor(textColor)
+        }
+    }
+
+    override fun onChange(position: Int): CharSequence {
+        val listItem = items.getOrNull(position)
+        return when (listItem) {
+            is Track -> listItem.title
+            is Album -> listItem.title
+            is AlbumSection -> listItem.title
+            else -> ""
+        }
+    }
+
+    private fun displayEditDialog() {
+        getSelectedTracks().firstOrNull()?.let { selectedTrack ->
+            EditDialog(activity as SimpleActivity, selectedTrack) { track ->
+                val trackIndex = items.indexOfFirst { (it as? Track)?.mediaStoreId == track.mediaStoreId }
+                if (trackIndex != -1) {
+                    items[trackIndex] = track
+                    notifyItemChanged(trackIndex)
+                    finishActMode()
+                }
+
+                activity.refreshAfterEdit(track)
+            }
         }
     }
 }

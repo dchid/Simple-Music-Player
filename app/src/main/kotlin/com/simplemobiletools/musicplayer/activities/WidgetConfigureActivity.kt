@@ -7,10 +7,8 @@ import android.graphics.Color
 import android.os.Bundle
 import android.widget.RemoteViews
 import com.simplemobiletools.commons.dialogs.ColorPickerDialog
-import com.simplemobiletools.commons.extensions.adjustAlpha
-import com.simplemobiletools.commons.extensions.applyColorFilter
-import com.simplemobiletools.commons.extensions.onSeekBarChangeListener
-import com.simplemobiletools.commons.extensions.setFillWithStroke
+import com.simplemobiletools.commons.dialogs.WidgetLockedDialog
+import com.simplemobiletools.commons.extensions.*
 import com.simplemobiletools.commons.helpers.IS_CUSTOMIZING_COLORS
 import com.simplemobiletools.musicplayer.R
 import com.simplemobiletools.musicplayer.extensions.config
@@ -27,6 +25,7 @@ class WidgetConfigureActivity : SimpleActivity() {
     private var mBgColor = 0
     private var mTextColor = 0
     private var mBgColorWithoutTransparency = 0
+    private var mWidgetLockedDialog: WidgetLockedDialog? = null
 
     public override fun onCreate(savedInstanceState: Bundle?) {
         useDynamicTheme = false
@@ -50,6 +49,24 @@ class WidgetConfigureActivity : SimpleActivity() {
         if (currSong != null) {
             song_info_title.text = currSong.title
             song_info_artist.text = currSong.artist
+        } else {
+            song_info_title.text = getString(R.string.artist)
+            song_info_artist.text = getString(R.string.song_title)
+        }
+
+        if (!isCustomizingColors && !isOrWasThankYouInstalled()) {
+            mWidgetLockedDialog = WidgetLockedDialog(this) {
+                if (!isOrWasThankYouInstalled()) {
+                    finish()
+                }
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (mWidgetLockedDialog != null && isOrWasThankYouInstalled()) {
+            mWidgetLockedDialog?.dismissDialog()
         }
     }
 
@@ -70,7 +87,7 @@ class WidgetConfigureActivity : SimpleActivity() {
     }
 
     private fun saveConfig() {
-        val appWidgetManager = AppWidgetManager.getInstance(this)
+        val appWidgetManager = AppWidgetManager.getInstance(this) ?: return
         val views = RemoteViews(packageName, R.layout.widget).apply {
             applyColorFilter(R.id.widget_background, mBgColor)
         }

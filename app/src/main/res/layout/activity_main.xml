@@ -6,14 +6,14 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <com.google.android.material.tabs.TabLayout
+    <com.simplemobiletools.musicplayer.views.MyTabLayout
         android:id="@+id/main_tabs_holder"
         android:layout_width="match_parent"
         android:layout_height="48dp"
         app:elevation="6dp"
         app:tabIndicatorColor="@android:color/white"
         app:tabIndicatorHeight="2dp"
-        app:tabMinWidth="150dp"
+        app:tabMode="scrollable"
         app:tabSelectedTextColor="@android:color/white" />
 
     <com.simplemobiletools.commons.views.MyViewPager

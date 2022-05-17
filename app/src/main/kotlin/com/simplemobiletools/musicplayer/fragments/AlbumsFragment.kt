@@ -5,59 +5,59 @@ import android.content.Intent
 import android.util.AttributeSet
 import com.google.gson.Gson
 import com.simplemobiletools.commons.adapters.MyRecyclerViewAdapter
-import com.simplemobiletools.commons.extensions.beGoneIf
-import com.simplemobiletools.commons.extensions.beVisibleIf
+import com.simplemobiletools.commons.extensions.*
 import com.simplemobiletools.commons.helpers.ensureBackgroundThread
 import com.simplemobiletools.musicplayer.R
 import com.simplemobiletools.musicplayer.activities.SimpleActivity
 import com.simplemobiletools.musicplayer.activities.TracksActivity
 import com.simplemobiletools.musicplayer.adapters.AlbumsAdapter
 import com.simplemobiletools.musicplayer.dialogs.ChangeSortingDialog
-import com.simplemobiletools.musicplayer.extensions.config
-import com.simplemobiletools.musicplayer.extensions.getAlbumsSync
-import com.simplemobiletools.musicplayer.extensions.getArtistsSync
+import com.simplemobiletools.musicplayer.extensions.*
 import com.simplemobiletools.musicplayer.helpers.ALBUM
 import com.simplemobiletools.musicplayer.helpers.TAB_ALBUMS
 import com.simplemobiletools.musicplayer.models.Album
 import kotlinx.android.synthetic.main.fragment_albums.view.*
 
-// Artists -> Albums -> Tracks
+// Artists -> Albums -> Tracks
 class AlbumsFragment(context: Context, attributeSet: AttributeSet) : MyViewPagerFragment(context, attributeSet) {
     private var albumsIgnoringSearch = ArrayList<Album>()
 
     override fun setupFragment(activity: SimpleActivity) {
+        Album.sorting = context.config.albumSorting
         ensureBackgroundThread {
-            val albums = ArrayList<Album>()
-
-            val artists = activity.getArtistsSync()
-            artists.forEach { artist ->
-                albums.addAll(activity.getAlbumsSync(artist))
-            }
-
-            Album.sorting = activity.config.albumSorting
-            albums.sort()
-
+            val cachedAlbums = activity.albumsDAO.getAll() as ArrayList<Album>
             activity.runOnUiThread {
-                albums_placeholder.text = context.getString(R.string.no_items_found)
-                albums_placeholder.beVisibleIf(albums.isEmpty())
-                val adapter = albums_list.adapter
-                if (adapter == null) {
-                    AlbumsAdapter(activity, albums, albums_list, albums_fastscroller) {
-                        Intent(activity, TracksActivity::class.java).apply {
-                            putExtra(ALBUM, Gson().toJson(it))
-                            activity.startActivity(this)
-                        }
-                    }.apply {
-                        albums_list.adapter = this
-                    }
+                gotAlbums(activity, cachedAlbums)
+            }
+        }
+    }
 
-                    albums_list.scheduleLayoutAnimation()
-                    albums_fastscroller.setViews(albums_list) {
-                        val album = (albums_list.adapter as AlbumsAdapter).albums.getOrNull(it)
-                        albums_fastscroller.updateBubbleText(album?.getBubbleText() ?: "")
+    private fun gotAlbums(activity: SimpleActivity, albums: ArrayList<Album>) {
+        albums.sort()
+
+        activity.runOnUiThread {
+            albums_placeholder.text = context.getString(R.string.no_items_found)
+            albums_placeholder.beVisibleIf(albums.isEmpty())
+
+            val adapter = albums_list.adapter
+            if (adapter == null) {
+                AlbumsAdapter(activity, albums, albums_list) {
+                    activity.hideKeyboard()
+                    Intent(activity, TracksActivity::class.java).apply {
+                        putExtra(ALBUM, Gson().toJson(it))
+                        activity.startActivity(this)
                     }
-                } else {
-                    (adapter as AlbumsAdapter).updateItems(albums)
+                }.apply {
+                    albums_list.adapter = this
+                }
+
+                if (context.areSystemAnimationsEnabled) {
+                    albums_list.scheduleLayoutAnimation()
+                }
+            } else {
+                val oldItems = (adapter as AlbumsAdapter).albums
+                if (oldItems.sortedBy { it.id }.hashCode() != albums.sortedBy { it.id }.hashCode()) {
+                    adapter.updateItems(albums)
                 }
             }
         }
@@ -93,7 +93,7 @@ class AlbumsFragment(context: Context, attributeSet: AttributeSet) : MyViewPager
     }
 
     override fun setupColors(textColor: Int, adjustedPrimaryColor: Int) {
-        albums_fastscroller.updatePrimaryColor()
-        albums_fastscroller.updateBubbleColors()
+        albums_placeholder.setTextColor(textColor)
+        albums_fastscroller.updateColors(adjustedPrimaryColor)
     }
 }

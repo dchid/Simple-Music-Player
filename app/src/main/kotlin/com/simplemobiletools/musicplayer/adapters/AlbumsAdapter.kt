@@ -7,26 +7,22 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.CenterCrop
 import com.bumptech.glide.load.resource.bitmap.RoundedCorners
 import com.bumptech.glide.request.RequestOptions
+import com.qtalk.recyclerviewfastscroller.RecyclerViewFastScroller
 import com.simplemobiletools.commons.adapters.MyRecyclerViewAdapter
 import com.simplemobiletools.commons.dialogs.ConfirmationDialog
 import com.simplemobiletools.commons.extensions.getColoredDrawableWithColor
 import com.simplemobiletools.commons.extensions.highlightTextPart
 import com.simplemobiletools.commons.helpers.ensureBackgroundThread
-import com.simplemobiletools.commons.views.FastScroller
 import com.simplemobiletools.commons.views.MyRecyclerView
 import com.simplemobiletools.musicplayer.R
 import com.simplemobiletools.musicplayer.activities.SimpleActivity
-import com.simplemobiletools.musicplayer.extensions.addTracksToPlaylist
-import com.simplemobiletools.musicplayer.extensions.addTracksToQueue
-import com.simplemobiletools.musicplayer.extensions.deleteTracks
-import com.simplemobiletools.musicplayer.extensions.getAlbumTracksSync
+import com.simplemobiletools.musicplayer.extensions.*
 import com.simplemobiletools.musicplayer.models.Album
 import com.simplemobiletools.musicplayer.models.Track
 import kotlinx.android.synthetic.main.item_album.view.*
-import java.util.*
 
-class AlbumsAdapter(activity: SimpleActivity, var albums: ArrayList<Album>, recyclerView: MyRecyclerView, fastScroller: FastScroller, itemClick: (Any) -> Unit) :
-        MyRecyclerViewAdapter(activity, recyclerView, fastScroller, itemClick) {
+class AlbumsAdapter(activity: SimpleActivity, var albums: ArrayList<Album>, recyclerView: MyRecyclerView, itemClick: (Any) -> Unit) :
+    MyRecyclerViewAdapter(activity, recyclerView, itemClick), RecyclerViewFastScroller.OnPopupTextUpdate {
 
     private var textToHighlight = ""
     private val placeholderBig = resources.getColoredDrawableWithColor(R.drawable.ic_headset, textColor)
@@ -61,6 +57,7 @@ class AlbumsAdapter(activity: SimpleActivity, var albums: ArrayList<Album>, recy
             R.id.cab_add_to_playlist -> addToPlaylist()
             R.id.cab_add_to_queue -> addToQueue()
             R.id.cab_delete -> askConfirmDelete()
+            R.id.cab_select_all -> selectAll()
         }
     }
 
@@ -117,6 +114,8 @@ class AlbumsAdapter(activity: SimpleActivity, var albums: ArrayList<Album>, recy
                     }
 
                     tracks.addAll(activity.getAlbumTracksSync(album.id))
+
+                    activity.albumsDAO.deleteAlbum(album.id)
                 }
 
                 activity.deleteTracks(tracks) {
@@ -146,14 +145,17 @@ class AlbumsAdapter(activity: SimpleActivity, var albums: ArrayList<Album>, recy
             textToHighlight = highlightText
             notifyDataSetChanged()
         }
-        fastScroller?.measureRecyclerView()
     }
 
     private fun setupView(view: View, album: Album) {
         view.apply {
             album_frame?.isSelected = selectedKeys.contains(album.hashCode())
-            album_title.text = if (textToHighlight.isEmpty()) album.title else album.title.highlightTextPart(textToHighlight, adjustedPrimaryColor)
+            album_title.text = if (textToHighlight.isEmpty()) album.title else album.title.highlightTextPart(textToHighlight, properPrimaryColor)
             album_title.setTextColor(textColor)
+
+            val tracks = resources.getQuantityString(R.plurals.tracks_plural, album.trackCnt, album.trackCnt)
+            album_tracks.text = tracks
+            album_tracks.setTextColor(textColor)
 
             val options = RequestOptions()
                 .error(placeholderBig)
@@ -165,4 +167,6 @@ class AlbumsAdapter(activity: SimpleActivity, var albums: ArrayList<Album>, recy
                 .into(findViewById(R.id.album_image))
         }
     }
+
+    override fun onChange(position: Int) = albums.getOrNull(position)?.getBubbleText() ?: ""
 }

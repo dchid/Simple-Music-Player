@@ -4,6 +4,8 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
+import com.simplemobiletools.commons.extensions.areSystemAnimationsEnabled
+import com.simplemobiletools.commons.extensions.getProperPrimaryColor
 import com.simplemobiletools.commons.helpers.ensureBackgroundThread
 import com.simplemobiletools.musicplayer.R
 import com.simplemobiletools.musicplayer.adapters.QueueAdapter
@@ -11,6 +13,7 @@ import com.simplemobiletools.musicplayer.dialogs.NewPlaylistDialog
 import com.simplemobiletools.musicplayer.helpers.PLAY_TRACK
 import com.simplemobiletools.musicplayer.helpers.RoomHelper
 import com.simplemobiletools.musicplayer.helpers.TRACK_ID
+import com.simplemobiletools.musicplayer.inlines.indexOfFirstOrNull
 import com.simplemobiletools.musicplayer.models.Events
 import com.simplemobiletools.musicplayer.models.Track
 import com.simplemobiletools.musicplayer.services.MusicService
@@ -29,6 +32,7 @@ class QueueActivity : SimpleActivity() {
         bus = EventBus.getDefault()
         bus!!.register(this)
         setupAdapter()
+        queue_fastscroller.updateColors(getProperPrimaryColor())
     }
 
     override fun onDestroy() {
@@ -53,7 +57,7 @@ class QueueActivity : SimpleActivity() {
     private fun setupAdapter() {
         val adapter = queue_list.adapter
         if (adapter == null) {
-            val queueAdapter = QueueAdapter(this, MusicService.mTracks, queue_list, queue_fastscroller) {
+            QueueAdapter(this, MusicService.mTracks, queue_list) {
                 Intent(this, MusicService::class.java).apply {
                     action = PLAY_TRACK
                     putExtra(TRACK_ID, (it as Track).mediaStoreId)
@@ -63,11 +67,15 @@ class QueueActivity : SimpleActivity() {
                 queue_list.adapter = this
             }
 
-            queue_list.scheduleLayoutAnimation()
-            queue_fastscroller.setViews(queue_list) {
-                val track = queueAdapter.items.getOrNull(it)
-                queue_fastscroller.updateBubbleText(track?.title ?: "")
+            if (areSystemAnimationsEnabled) {
+                queue_list.scheduleLayoutAnimation()
             }
+
+            val currentTrackPosition = MusicService.mTracks.indexOfFirstOrNull { it == MusicService.mCurrTrack } ?: -1
+            if (currentTrackPosition > 0) {
+                queue_list.smoothScrollToPosition(currentTrackPosition)
+            }
+
         } else {
             adapter.notifyDataSetChanged()
         }

@@ -15,10 +15,7 @@ import androidx.viewpager.widget.ViewPager
 import com.simplemobiletools.commons.dialogs.FilePickerDialog
 import com.simplemobiletools.commons.dialogs.RadioGroupDialog
 import com.simplemobiletools.commons.extensions.*
-import com.simplemobiletools.commons.helpers.LICENSE_EVENT_BUS
-import com.simplemobiletools.commons.helpers.LICENSE_GLIDE
-import com.simplemobiletools.commons.helpers.PERMISSION_WRITE_STORAGE
-import com.simplemobiletools.commons.helpers.ensureBackgroundThread
+import com.simplemobiletools.commons.helpers.*
 import com.simplemobiletools.commons.models.FAQItem
 import com.simplemobiletools.commons.models.RadioItem
 import com.simplemobiletools.commons.models.Release
@@ -29,14 +26,13 @@ import com.simplemobiletools.musicplayer.dialogs.NewPlaylistDialog
 import com.simplemobiletools.musicplayer.dialogs.SleepTimerCustomDialog
 import com.simplemobiletools.musicplayer.extensions.*
 import com.simplemobiletools.musicplayer.fragments.MyViewPagerFragment
-import com.simplemobiletools.musicplayer.helpers.INIT_QUEUE
-import com.simplemobiletools.musicplayer.helpers.START_SLEEP_TIMER
-import com.simplemobiletools.musicplayer.helpers.STOP_SLEEP_TIMER
+import com.simplemobiletools.musicplayer.helpers.*
 import com.simplemobiletools.musicplayer.models.Events
 import com.simplemobiletools.musicplayer.services.MusicService
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.fragment_albums.*
 import kotlinx.android.synthetic.main.fragment_artists.*
+import kotlinx.android.synthetic.main.fragment_folders.*
 import kotlinx.android.synthetic.main.fragment_playlists.*
 import kotlinx.android.synthetic.main.fragment_tracks.*
 import kotlinx.android.synthetic.main.view_current_track_bar.*
@@ -48,11 +44,13 @@ class MainActivity : SimpleActivity() {
     private var isSearchOpen = false
     private var searchMenuItem: MenuItem? = null
     private var bus: EventBus? = null
+    private var storedShowTabs = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         appLaunched(BuildConfig.APPLICATION_ID)
+        storeStateVariables()
 
         handlePermission(PERMISSION_WRITE_STORAGE) {
             if (it) {
@@ -66,30 +64,48 @@ class MainActivity : SimpleActivity() {
         volumeControlStream = AudioManager.STREAM_MUSIC
         checkWhatsNewDialog()
         checkAppOnSDCard()
+
+        if (config.appRunCount == 1) {
+            config.wereTrackFoldersAdded = true
+        } else if (config.appRunCount > 5) {
+            // assume old users have it created already
+            config.wasAllTracksPlaylistCreated = true
+        }
     }
 
     override fun onResume() {
         super.onResume()
+        if (storedShowTabs != config.showTabs) {
+            config.lastUsedViewPagerPage = 0
+            System.exit(0)
+            return
+        }
+
         updateTextColors(main_holder)
-        sleep_timer_holder.background = ColorDrawable(config.backgroundColor)
-        sleep_timer_stop.applyColorFilter(config.textColor)
+        sleep_timer_holder.background = ColorDrawable(getProperBackgroundColor())
+        sleep_timer_stop.applyColorFilter(getProperTextColor())
         updateCurrentTrackBar()
 
-        val adjustedPrimaryColor = getAdjustedPrimaryColor()
+        val adjustedPrimaryColor = getProperPrimaryColor()
         main_tabs_holder.apply {
-            setTabTextColors(config.textColor, adjustedPrimaryColor)
+            setTabTextColors(getProperTextColor(), adjustedPrimaryColor)
             setSelectedTabIndicatorColor(adjustedPrimaryColor)
         }
 
         getAllFragments().forEach {
-            it?.setupColors(config.textColor, adjustedPrimaryColor)
+            it?.setupColors(getProperTextColor(), adjustedPrimaryColor)
         }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        storeStateVariables()
+        config.lastUsedViewPagerPage = viewpager.currentItem
     }
 
     override fun onDestroy() {
         super.onDestroy()
         bus?.unregister(this)
-        config.lastUsedViewPagerPage = viewpager.currentItem
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -120,6 +136,12 @@ class MainActivity : SimpleActivity() {
             else -> return super.onOptionsItemSelected(item)
         }
         return true
+    }
+
+    private fun storeStateVariables() {
+        config.apply {
+            storedShowTabs = showTabs
+        }
     }
 
     private fun setupSearch(menu: Menu) {
@@ -174,11 +196,17 @@ class MainActivity : SimpleActivity() {
                 }
             }
         }
+
+        updateAllDatabases {
+            getAllFragments().forEach {
+                it?.setupFragment(this)
+            }
+        }
     }
 
     private fun initFragments() {
         viewpager.adapter = ViewPagerAdapter(this)
-        viewpager.offscreenPageLimit = 3
+        viewpager.offscreenPageLimit = tabsList.size - 1
         viewpager.addOnPageChangeListener(object : ViewPager.OnPageChangeListener {
             override fun onPageScrollStateChanged(state: Int) {
                 if (isSearchOpen) {
@@ -202,13 +230,27 @@ class MainActivity : SimpleActivity() {
             }
         )
 
-        val tabLabels = arrayOf(getString(R.string.playlists), getString(R.string.artists), getString(R.string.albums), getString(R.string.tracks))
-        main_tabs_holder.apply {
-            removeAllTabs()
+        val tabLabels = arrayListOf(
+            getString(R.string.playlists),
+            getString(R.string.artists),
+            getString(R.string.albums),
+            getString(R.string.tracks)
+        )
 
-            for (i in tabLabels.indices) {
-                val tab = newTab().setText(tabLabels[i])
-                addTab(tab, i, i == 0)
+        if (isQPlus()) {
+            tabLabels.add(1, getString(R.string.folders))
+        }
+
+        main_tabs_holder.removeAllTabs()
+        var skippedTabs = 0
+        tabsList.forEachIndexed { index, value ->
+            if (config.showTabs and value == 0) {
+                skippedTabs++
+            } else {
+                val label = tabLabels[index]
+                val tab = main_tabs_holder.newTab().setText(label)
+                tab.contentDescription = label
+                main_tabs_holder.addTab(tab, index - skippedTabs, config.lastUsedViewPagerPage == index - skippedTabs)
             }
         }
 
@@ -216,12 +258,29 @@ class MainActivity : SimpleActivity() {
     }
 
     private fun getCurrentFragment(): MyViewPagerFragment? {
-        return when (viewpager.currentItem) {
-            0 -> playlists_fragment_holder
-            1 -> artists_fragment_holder
-            2 -> albums_fragment_holder
-            else -> tracks_fragment_holder
+        val showTabs = config.showTabs
+        val fragments = arrayListOf<MyViewPagerFragment>()
+        if (showTabs and TAB_PLAYLISTS != 0) {
+            fragments.add(playlists_fragment_holder)
         }
+
+        if (showTabs and TAB_FOLDERS != 0) {
+            fragments.add(folders_fragment_holder)
+        }
+
+        if (showTabs and TAB_ARTISTS != 0) {
+            fragments.add(artists_fragment_holder)
+        }
+
+        if (showTabs and TAB_ALBUMS != 0) {
+            fragments.add(albums_fragment_holder)
+        }
+
+        if (showTabs and TAB_TRACKS != 0) {
+            fragments.add(tracks_fragment_holder)
+        }
+
+        return fragments.getOrNull(viewpager.currentItem)
     }
 
     private fun showSortingDialog() {
@@ -275,7 +334,8 @@ class MainActivity : SimpleActivity() {
             RadioItem(10 * 60, "10 $minutes"),
             RadioItem(20 * 60, "20 $minutes"),
             RadioItem(30 * 60, "30 $minutes"),
-            RadioItem(60 * 60, hour))
+            RadioItem(60 * 60, hour)
+        )
 
         if (items.none { it.id == config.lastSleepTimerSeconds }) {
             val lastSleepTimerMinutes = config.lastSleepTimerSeconds / 60
@@ -324,7 +384,8 @@ class MainActivity : SimpleActivity() {
         }
     }
 
-    private fun getAllFragments() = arrayListOf(playlists_fragment_holder, artists_fragment_holder, albums_fragment_holder, tracks_fragment_holder)
+    private fun getAllFragments() =
+        arrayListOf(playlists_fragment_holder, folders_fragment_holder, artists_fragment_holder, albums_fragment_holder, tracks_fragment_holder)
 
     @Subscribe(threadMode = ThreadMode.MAIN)
     fun trackChangedEvent(event: Events.TrackChanged) {
@@ -357,17 +418,26 @@ class MainActivity : SimpleActivity() {
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)
+    fun tracksUpdated(event: Events.RefreshTracks) {
+        tracks_fragment_holder?.setupFragment(this)
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
     fun trackDeleted(event: Events.TrackDeleted) {
-        getAllFragments().forEach {
-            it.setupFragment(this)
+        updateAllDatabases {
+            getAllFragments().forEach {
+                it?.setupFragment(this)
+            }
         }
     }
 
     private fun launchEqualizer() {
+        hideKeyboard()
         startActivity(Intent(applicationContext, EqualizerActivity::class.java))
     }
 
     private fun launchSettings() {
+        hideKeyboard()
         startActivity(Intent(applicationContext, SettingsActivity::class.java))
     }
 
@@ -380,7 +450,8 @@ class MainActivity : SimpleActivity() {
             FAQItem(R.string.faq_4_title_commons, R.string.faq_4_text_commons),
             FAQItem(R.string.faq_2_title_commons, R.string.faq_2_text_commons),
             FAQItem(R.string.faq_6_title_commons, R.string.faq_6_text_commons),
-            FAQItem(R.string.faq_9_title_commons, R.string.faq_9_text_commons))
+            FAQItem(R.string.faq_9_title_commons, R.string.faq_9_text_commons)
+        )
 
         startAboutActivity(R.string.app_name, licenses, BuildConfig.VERSION_NAME, faqItems, true)
     }

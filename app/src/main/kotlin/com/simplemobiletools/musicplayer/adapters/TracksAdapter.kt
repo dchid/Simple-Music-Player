@@ -1,7 +1,5 @@
 package com.simplemobiletools.musicplayer.adapters
 
-import android.content.ContentUris
-import android.provider.MediaStore
 import android.view.Menu
 import android.view.View
 import android.view.ViewGroup
@@ -9,28 +7,28 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.CenterCrop
 import com.bumptech.glide.load.resource.bitmap.RoundedCorners
 import com.bumptech.glide.request.RequestOptions
+import com.qtalk.recyclerviewfastscroller.RecyclerViewFastScroller
 import com.simplemobiletools.commons.adapters.MyRecyclerViewAdapter
 import com.simplemobiletools.commons.dialogs.ConfirmationDialog
-import com.simplemobiletools.commons.dialogs.PropertiesDialog
 import com.simplemobiletools.commons.extensions.*
 import com.simplemobiletools.commons.helpers.ensureBackgroundThread
-import com.simplemobiletools.commons.views.FastScroller
 import com.simplemobiletools.commons.views.MyRecyclerView
 import com.simplemobiletools.musicplayer.R
 import com.simplemobiletools.musicplayer.activities.SimpleActivity
-import com.simplemobiletools.musicplayer.extensions.addTracksToPlaylist
-import com.simplemobiletools.musicplayer.extensions.addTracksToQueue
-import com.simplemobiletools.musicplayer.extensions.deleteTracks
-import com.simplemobiletools.musicplayer.extensions.tracksDAO
+import com.simplemobiletools.musicplayer.dialogs.EditDialog
+import com.simplemobiletools.musicplayer.extensions.*
+import com.simplemobiletools.musicplayer.helpers.TagHelper
 import com.simplemobiletools.musicplayer.models.Events
 import com.simplemobiletools.musicplayer.models.Track
 import kotlinx.android.synthetic.main.item_track.view.*
 import org.greenrobot.eventbus.EventBus
 import java.util.*
 
-class TracksAdapter(activity: SimpleActivity, var tracks: ArrayList<Track>, val isPlaylistContent: Boolean, recyclerView: MyRecyclerView,
-                    fastScroller: FastScroller, itemClick: (Any) -> Unit) : MyRecyclerViewAdapter(activity, recyclerView, fastScroller, itemClick) {
+class TracksAdapter(
+    activity: SimpleActivity, var tracks: ArrayList<Track>, val isPlaylistContent: Boolean, recyclerView: MyRecyclerView, itemClick: (Any) -> Unit
+) : MyRecyclerViewAdapter(activity, recyclerView, itemClick), RecyclerViewFastScroller.OnPopupTextUpdate {
 
+    private val tagHelper by lazy { TagHelper(activity) }
     private var textToHighlight = ""
     private val placeholder = resources.getColoredDrawableWithColor(R.drawable.ic_headset, textColor)
     private val cornerRadius = resources.getDimension(R.dimen.rounded_corner_radius_small).toInt()
@@ -56,6 +54,8 @@ class TracksAdapter(activity: SimpleActivity, var tracks: ArrayList<Track>, val 
     override fun prepareActionMode(menu: Menu) {
         menu.apply {
             findItem(R.id.cab_remove_from_playlist).isVisible = isPlaylistContent
+            findItem(R.id.cab_rename).isVisible =
+                isOneItemSelected() && getSelectedTracks().firstOrNull()?.let { !it.path.startsWith("content://") && tagHelper.isEditTagSupported(it) } == true
         }
     }
 
@@ -68,8 +68,10 @@ class TracksAdapter(activity: SimpleActivity, var tracks: ArrayList<Track>, val 
             R.id.cab_add_to_playlist -> addToPlaylist()
             R.id.cab_add_to_queue -> addToQueue()
             R.id.cab_properties -> showProperties()
+            R.id.cab_rename -> displayEditDialog()
             R.id.cab_remove_from_playlist -> removeFromPlaylist()
             R.id.cab_delete -> askConfirmDelete()
+            R.id.cab_select_all -> selectAll()
         }
     }
 
@@ -100,19 +102,7 @@ class TracksAdapter(activity: SimpleActivity, var tracks: ArrayList<Track>, val 
 
     private fun showProperties() {
         val selectedTracks = getSelectedTracks()
-        val selectedPaths = selectedTracks.map { track ->
-            if (track.path.isNotEmpty()) {
-                track.path
-            } else {
-                ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, track.mediaStoreId).toString()
-            }
-        }
-
-        if (selectedPaths.size <= 1) {
-            PropertiesDialog(activity, selectedPaths.first(), false)
-        } else {
-            PropertiesDialog(activity, selectedPaths, false)
-        }
+        activity.showTrackProperties(selectedTracks)
     }
 
     private fun removeFromPlaylist() {
@@ -167,7 +157,7 @@ class TracksAdapter(activity: SimpleActivity, var tracks: ArrayList<Track>, val 
         }
     }
 
-    private fun getSelectedTracks(): List<Track> = tracks.filter { selectedKeys.contains(it.hashCode()) }.toList()
+    private fun getSelectedTracks(): List<Track> = tracks.filter { selectedKeys.contains(it.hashCode()) }
 
     fun updateItems(newItems: ArrayList<Track>, highlightText: String = "", forceUpdate: Boolean = false) {
         if (forceUpdate || newItems.hashCode() != tracks.hashCode()) {
@@ -179,13 +169,12 @@ class TracksAdapter(activity: SimpleActivity, var tracks: ArrayList<Track>, val 
             textToHighlight = highlightText
             notifyDataSetChanged()
         }
-        fastScroller?.measureRecyclerView()
     }
 
     private fun setupView(view: View, track: Track) {
         view.apply {
             track_frame?.isSelected = selectedKeys.contains(track.hashCode())
-            track_title.text = if (textToHighlight.isEmpty()) track.title else track.title.highlightTextPart(textToHighlight, adjustedPrimaryColor)
+            track_title.text = if (textToHighlight.isEmpty()) track.title else track.title.highlightTextPart(textToHighlight, properPrimaryColor)
 
             arrayOf(track_id, track_title, track_duration).forEach {
                 it.setTextColor(textColor)
@@ -203,6 +192,24 @@ class TracksAdapter(activity: SimpleActivity, var tracks: ArrayList<Track>, val 
 
             track_image.beVisible()
             track_id.beGone()
+        }
+    }
+
+    override fun onChange(position: Int) = tracks.getOrNull(position)?.getBubbleText() ?: ""
+
+    private fun displayEditDialog() {
+        getSelectedTracks().firstOrNull()?.let { selectedTrack ->
+            EditDialog(activity as SimpleActivity, selectedTrack) { track ->
+                val trackIndex = tracks.indexOfFirst { it.mediaStoreId == track.mediaStoreId }
+                tracks[trackIndex] = track
+                if (trackIndex != -1) {
+                    tracks[trackIndex] = track
+                    notifyItemChanged(trackIndex)
+                    finishActMode()
+                }
+
+                activity.refreshAfterEdit(track)
+            }
         }
     }
 }

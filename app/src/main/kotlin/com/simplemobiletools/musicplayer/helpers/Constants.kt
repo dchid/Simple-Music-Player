@@ -1,6 +1,7 @@
 package com.simplemobiletools.musicplayer.helpers
 
 import android.net.Uri
+import com.simplemobiletools.commons.helpers.isQPlus
 
 const val PROGRESS = "progress"
 const val EDITED_TRACK = "edited_track"
@@ -15,6 +16,7 @@ const val ARTIST = "artist"
 const val ALBUM = "album"
 const val TRACK = "track"
 const val PLAYLIST = "playlist"
+const val FOLDER = "folder"
 
 private const val PATH = "com.simplemobiletools.musicplayer.action."
 val artworkUri = Uri.parse("content://media/external/audio/albumart")
@@ -38,6 +40,7 @@ const val SKIP_FORWARD = PATH + "SKIP_FORWARD"
 const val BROADCAST_STATUS = PATH + "BROADCAST_STATUS"
 const val NOTIFICATION_DISMISSED = PATH + "NOTIFICATION_DISMISSED"
 const val SET_PLAYBACK_SPEED = PATH + "SET_PLAYBACK_SPEED"
+const val UPDATE_QUEUE_SIZE = PATH + "UPDATE_QUEUE_SIZE"
 
 const val NEW_TRACK = "NEW_TRACK"
 const val IS_PLAYING = "IS_PLAYING"
@@ -46,7 +49,7 @@ const val TRACK_STATE_CHANGED = "TRACK_STATE_CHANGED"
 
 // shared preferences
 const val SHUFFLE = "shuffle"
-const val REPEAT_TRACK = "repeat_track"
+const val PLAYBACK_SETTING = "playback_setting"
 const val AUTOPLAY = "autoplay"
 const val CURRENT_PLAYLIST = "current_playlist"
 const val SHOW_FILENAME = "show_filename"
@@ -57,16 +60,45 @@ const val EQUALIZER_PRESET = "EQUALIZER_PRESET"
 const val EQUALIZER_BANDS = "EQUALIZER_BANDS"
 const val PLAYBACK_SPEED = "PLAYBACK_SPEED"
 const val PLAYBACK_SPEED_PROGRESS = "PLAYBACK_SPEED_PROGRESS"
+const val WERE_TRACK_FOLDERS_ADDED = "were_track_folders_added"
+const val SHOW_TABS = "show_tabs"
+const val WAS_ALL_TRACKS_PLAYLIST_CREATED = "was_all_tracks_playlist_created"
 
 const val SHOW_FILENAME_NEVER = 1
 const val SHOW_FILENAME_IF_UNAVAILABLE = 2
 const val SHOW_FILENAME_ALWAYS = 3
 
-const val TAB_PLAYLISTS = 0
-const val TAB_ARTISTS = 1
-const val TAB_ALBUMS = 2
-const val TAB_TRACKS = 3
-const val ACTIVITY_PLAYLIST = 4
+const val TAB_PLAYLISTS = 1
+const val TAB_FOLDERS = 2
+const val TAB_ARTISTS = 4
+const val TAB_ALBUMS = 8
+const val TAB_TRACKS = 16
+const val ACTIVITY_PLAYLIST_FOLDER = 32
+
+// show Folders tab only on Android Q+, BUCKET_DISPLAY_NAME hasn't been available before that
+val allTabsMask = if (isQPlus()) {
+    TAB_PLAYLISTS or TAB_FOLDERS or TAB_ARTISTS or TAB_ALBUMS or TAB_TRACKS
+} else {
+    TAB_PLAYLISTS or TAB_ARTISTS or TAB_ALBUMS or TAB_TRACKS
+}
+
+val tabsList: ArrayList<Int>
+    get() = if (isQPlus()) {
+        arrayListOf(
+            TAB_PLAYLISTS,
+            TAB_FOLDERS,
+            TAB_ARTISTS,
+            TAB_ALBUMS,
+            TAB_TRACKS
+        )
+    } else {
+        arrayListOf(
+            TAB_PLAYLISTS,
+            TAB_ARTISTS,
+            TAB_ALBUMS,
+            TAB_TRACKS
+        )
+    }
 
 // use custom sorting constants, there are too many app specific ones
 const val PLAYER_SORT_BY_TITLE = 1
@@ -78,6 +110,7 @@ const val PLAYER_SORT_BY_ARTIST_TITLE = 32
 
 const val PLAYLIST_SORTING = "playlist_sorting"
 const val PLAYLIST_TRACKS_SORTING = "playlist_tracks_sorting"
+const val FOLDER_SORTING = "folder_sorting"
 const val ARTIST_SORTING = "artist_sorting"
 const val ALBUM_SORTING = "album_sorting"
 const val TRACK_SORTING = "track_sorting"

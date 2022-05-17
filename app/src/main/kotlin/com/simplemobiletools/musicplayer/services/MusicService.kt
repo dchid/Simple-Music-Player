@@ -13,7 +13,6 @@ import android.media.AudioManager.*
 import android.media.MediaMetadataRetriever
 import android.media.MediaPlayer
 import android.media.audiofx.Equalizer
-import android.media.session.PlaybackState.PLAYBACK_POSITION_UNKNOWN
 import android.net.Uri
 import android.os.CountDownTimer
 import android.os.Handler
@@ -46,7 +45,6 @@ import com.simplemobiletools.musicplayer.receivers.NotificationDismissedReceiver
 import org.greenrobot.eventbus.EventBus
 import java.io.File
 import java.io.IOException
-import java.util.*
 
 class MusicService : Service(), MediaPlayer.OnPreparedListener, MediaPlayer.OnErrorListener, MediaPlayer.OnCompletionListener, OnAudioFocusChangeListener {
     companion object {
@@ -136,6 +134,8 @@ class MusicService : Service(), MediaPlayer.OnPreparedListener, MediaPlayer.OnEr
             return START_NOT_STICKY
         }
 
+        notifyFocusGained()
+
         val action = intent.action
         if (isOreoPlus() && action != NEXT && action != PREVIOUS && action != PLAYPAUSE) {
             setupFakeNotification()
@@ -162,11 +162,17 @@ class MusicService : Service(), MediaPlayer.OnPreparedListener, MediaPlayer.OnEr
             STOP_SLEEP_TIMER -> stopSleepTimer()
             BROADCAST_STATUS -> broadcastPlayerStatus()
             SET_PLAYBACK_SPEED -> setPlaybackSpeed()
+            UPDATE_QUEUE_SIZE -> updateQueueSize()
         }
 
         MediaButtonReceiver.handleIntent(mMediaSession!!, intent)
         setupNotification()
         return START_NOT_STICKY
+    }
+
+    private fun notifyFocusGained() {
+        mWasPlayingAtFocusLost = false
+        mPrevAudioFocusState = AUDIOFOCUS_GAIN
     }
 
     private fun initService(intent: Intent?) {
@@ -239,6 +245,7 @@ class MusicService : Service(), MediaPlayer.OnPreparedListener, MediaPlayer.OnEr
                 }
             }
 
+            checkTrackOrder()
             val currentQueueItem = queuedItems.firstOrNull { it.isCurrent } ?: queuedItems.firstOrNull()
             if (currentQueueItem != null) {
                 mCurrTrack = mTracks.firstOrNull { it.mediaStoreId == currentQueueItem.trackId } ?: return@ensureBackgroundThread
@@ -308,7 +315,6 @@ class MusicService : Service(), MediaPlayer.OnPreparedListener, MediaPlayer.OnEr
                 mPlayer!!.apply {
                     reset()
                     setDataSource(applicationContext, mIntentUri!!)
-                    setOnPreparedListener(null)
                     prepare()
                     start()
                 }
@@ -396,7 +402,17 @@ class MusicService : Service(), MediaPlayer.OnPreparedListener, MediaPlayer.OnEr
         val tracks = ArrayList<Track>()
         val allTracks = tracksDAO.getAll()
         val wantedIds = queueDAO.getAll().map { it.trackId }
-        val wantedTracks = allTracks.filter { wantedIds.contains(it.mediaStoreId) }
+
+        // make sure we fetch the songs in the order they were displayed in
+        val wantedTracks = ArrayList<Track>()
+        for (wantedId in wantedIds) {
+            val wantedTrack = allTracks.firstOrNull { it.mediaStoreId == wantedId }
+            if (wantedTrack != null) {
+                wantedTracks.add(wantedTrack)
+                continue
+            }
+        }
+
         tracks.addAll(wantedTracks)
         return tracks.distinctBy { it.mediaStoreId }.toMutableList() as ArrayList<Track>
     }
@@ -441,19 +457,20 @@ class MusicService : Service(), MediaPlayer.OnPreparedListener, MediaPlayer.OnEr
         }
 
         if (mCurrTrackCover?.isRecycled == true) {
-            mCurrTrackCover = resources.getColoredBitmap(R.drawable.ic_headset, config.textColor)
+            mCurrTrackCover = resources.getColoredBitmap(R.drawable.ic_headset, getProperTextColor())
         }
 
         val notificationDismissedIntent = Intent(this, NotificationDismissedReceiver::class.java).apply {
             action = NOTIFICATION_DISMISSED
         }
-        val notificationDismissedPendingIntent = PendingIntent.getBroadcast(this, 0, notificationDismissedIntent, PendingIntent.FLAG_CANCEL_CURRENT)
+
+        val flags = PendingIntent.FLAG_CANCEL_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        val notificationDismissedPendingIntent = PendingIntent.getBroadcast(this, 0, notificationDismissedIntent, flags)
 
         val notification = NotificationCompat.Builder(applicationContext, NOTIFICATION_CHANNEL)
             .setContentTitle(title)
             .setContentText(artist)
             .setSmallIcon(R.drawable.ic_headset_small)
-            .setLargeIcon(mCurrTrackCover)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setWhen(notifWhen)
@@ -463,41 +480,45 @@ class MusicService : Service(), MediaPlayer.OnPreparedListener, MediaPlayer.OnEr
             .setOngoing(ongoing)
             .setChannelId(NOTIFICATION_CHANNEL)
             .setCategory(Notification.CATEGORY_SERVICE)
-            .setStyle(androidx.media.app.NotificationCompat.MediaStyle()
-                .setShowActionsInCompactView(0, 1, 2)
-                .setMediaSession(mMediaSession?.sessionToken))
+            .setStyle(
+                androidx.media.app.NotificationCompat.MediaStyle()
+                    .setShowActionsInCompactView(0, 1, 2)
+                    .setMediaSession(mMediaSession?.sessionToken)
+            )
             .setDeleteIntent(notificationDismissedPendingIntent)
             .addAction(R.drawable.ic_previous_vector, getString(R.string.previous), getIntent(PREVIOUS))
             .addAction(playPauseIcon, getString(R.string.playpause), getIntent(PLAYPAUSE))
             .addAction(R.drawable.ic_next_vector, getString(R.string.next), getIntent(NEXT))
 
-        startForeground(NOTIFICATION_ID, notification.build())
-
-        // delay foreground state updating a bit, so the notification can be swiped away properly after initial display
-        Handler(Looper.getMainLooper()).postDelayed({
-            if (!getIsPlaying()) {
-                stopForeground(false)
-            }
-        }, 200L)
-
-        val playbackState = if (getIsPlaying()) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED
         try {
-            mMediaSession!!.setPlaybackState(PlaybackStateCompat.Builder()
-                .setState(playbackState, PLAYBACK_POSITION_UNKNOWN, 1.0f)
-                .build())
-        } catch (ignored: IllegalStateException) {
+            notification.setLargeIcon(mCurrTrackCover)
+        } catch (e: OutOfMemoryError) {
+        }
+
+        try {
+            startForeground(NOTIFICATION_ID, notification.build())
+
+            // delay foreground state updating a bit, so the notification can be swiped away properly after initial display
+            Handler(Looper.getMainLooper()).postDelayed({
+                val isFocusLost = mPrevAudioFocusState == AUDIOFOCUS_LOSS || mPrevAudioFocusState == AUDIOFOCUS_LOSS_TRANSIENT
+                val isPlaybackStoppedAfterFocusLoss = mWasPlayingAtFocusLost && isFocusLost
+                if (!getIsPlaying() && !isPlaybackStoppedAfterFocusLoss) {
+                    stopForeground(false)
+                }
+            }, 200L)
+        } catch (ignored: ForegroundServiceStartNotAllowedException) {
         }
     }
 
     private fun getContentIntent(): PendingIntent {
         val contentIntent = Intent(this, MainActivity::class.java)
-        return PendingIntent.getActivity(this, 0, contentIntent, 0)
+        return PendingIntent.getActivity(this, 0, contentIntent, PendingIntent.FLAG_IMMUTABLE)
     }
 
     private fun getIntent(action: String): PendingIntent {
         val intent = Intent(this, ControlActionsListener::class.java)
         intent.action = action
-        return PendingIntent.getBroadcast(applicationContext, 0, intent, 0)
+        return PendingIntent.getBroadcast(applicationContext, 0, intent, PendingIntent.FLAG_IMMUTABLE)
     }
 
     // on Android 8+ the service is launched with startForegroundService(), so startForeground must be called within a few secs
@@ -537,6 +558,13 @@ class MusicService : Service(), MediaPlayer.OnPreparedListener, MediaPlayer.OnEr
                     -1L
                 }
             }
+        }
+    }
+
+    private fun isEndOfPlaylist(): Boolean {
+        return when (mTracks.size) {
+            0, 1 -> true
+            else -> mCurrTrack?.mediaStoreId == mTracks.last().mediaStoreId
         }
     }
 
@@ -627,6 +655,7 @@ class MusicService : Service(), MediaPlayer.OnPreparedListener, MediaPlayer.OnEr
             } else {
                 ContentUris.withAppendedId(Audio.Media.EXTERNAL_CONTENT_URI, mCurrTrack!!.mediaStoreId)
             }
+
             mPlayer!!.setDataSource(applicationContext, trackUri)
             mPlayer!!.prepareAsync()
             trackChanged()
@@ -665,11 +694,29 @@ class MusicService : Service(), MediaPlayer.OnPreparedListener, MediaPlayer.OnEr
             return
         }
 
-        if (config.repeatTrack) {
-            restartTrack()
-        } else if (mPlayer!!.currentPosition > 0) {
-            mPlayer!!.reset()
-            setupNextTrack()
+        val playbackSetting = config.playbackSetting
+
+        mPlayOnPrepare = when (playbackSetting) {
+            PlaybackSetting.REPEAT_OFF -> !isEndOfPlaylist()
+            PlaybackSetting.REPEAT_PLAYLIST, PlaybackSetting.REPEAT_TRACK -> true
+            PlaybackSetting.STOP_AFTER_CURRENT_TRACK -> false
+        }
+
+        when (config.playbackSetting) {
+            PlaybackSetting.REPEAT_OFF -> {
+                if (isEndOfPlaylist()) {
+                    broadcastTrackProgress(0)
+                    setupNextTrack()
+                } else {
+                    setupNextTrack()
+                }
+            }
+            PlaybackSetting.REPEAT_PLAYLIST -> setupNextTrack()
+            PlaybackSetting.REPEAT_TRACK -> restartTrack()
+            PlaybackSetting.STOP_AFTER_CURRENT_TRACK -> {
+                broadcastTrackProgress(0)
+                restartTrack()
+            }
         }
     }
 
@@ -683,6 +730,17 @@ class MusicService : Service(), MediaPlayer.OnPreparedListener, MediaPlayer.OnEr
         if (mPlayOnPrepare) {
             mp.start()
             requestAudioFocus()
+
+            if (isMarshmallowPlus()) {
+                try {
+                    mp.playbackParams = mp.playbackParams.setSpeed(config.playbackSpeed)
+                } catch (e: Exception) {
+                }
+            }
+
+            if (mIsThirdPartyIntent) {
+                trackChanged()
+            }
         } else if (mSetProgressOnPrepare > 0) {
             mPlayer?.seekTo(mSetProgressOnPrepare)
             broadcastTrackProgress(mSetProgressOnPrepare / 1000)
@@ -694,16 +752,53 @@ class MusicService : Service(), MediaPlayer.OnPreparedListener, MediaPlayer.OnEr
     }
 
     private fun trackChanged() {
+        broadcastTrackChange()
+        updateMediaSession()
+        updateMediaSessionState()
+    }
+
+    private fun updateMediaSession() {
         val albumImage = getAlbumImage()
         mCurrTrackCover = albumImage.first
-        broadcastTrackChange()
+        var lockScreenImage = if (albumImage.second) albumImage.first else null
+        if (lockScreenImage == null || lockScreenImage.isRecycled) {
+            try {
+                lockScreenImage = resources.getColoredBitmap(R.drawable.ic_headset, getProperTextColor())
+            } catch (e: OutOfMemoryError) {
+            }
+        }
 
-        val lockScreenImage = if (albumImage.second) albumImage.first else null
         val metadata = MediaMetadataCompat.Builder()
-            .putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, lockScreenImage)
+            .putBitmap(MediaMetadataCompat.METADATA_KEY_ART, lockScreenImage)
+            .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, mCurrTrack?.album ?: "")
+            .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, mCurrTrack?.artist ?: "")
+            .putString(MediaMetadataCompat.METADATA_KEY_TITLE, mCurrTrack?.title ?: "")
+            .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, mCurrTrack?.mediaStoreId?.toString())
+            .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, (mCurrTrack?.duration?.toLong() ?: 0L) * 1000)
+            .putLong(MediaMetadataCompat.METADATA_KEY_TRACK_NUMBER, mTracks.indexOf(mCurrTrack).toLong() + 1)
+            .putLong(MediaMetadataCompat.METADATA_KEY_NUM_TRACKS, mTracks.size.toLong())
             .build()
 
         mMediaSession?.setMetadata(metadata)
+    }
+
+    private fun updateMediaSessionState() {
+        val builder = PlaybackStateCompat.Builder()
+        val playbackState = if (getIsPlaying()) {
+            PlaybackStateCompat.STATE_PLAYING
+        } else {
+            PlaybackStateCompat.STATE_PAUSED
+        }
+
+        builder.setState(playbackState, mPlayer?.currentPosition?.toLong() ?: 0L, mPlaybackSpeed)
+        try {
+            mMediaSession?.setPlaybackState(builder.build())
+        } catch (ignored: Exception) {
+        }
+    }
+
+    private fun updateQueueSize() {
+        updateMediaSession()
     }
 
     @SuppressLint("NewApi")
@@ -752,6 +847,7 @@ class MusicService : Service(), MediaPlayer.OnPreparedListener, MediaPlayer.OnEr
 
     private fun broadcastTrackProgress(progress: Int) {
         EventBus.getDefault().post(Events.ProgressUpdated(progress))
+        updateMediaSessionState()
     }
 
     // do not just return the album cover, but also a boolean to indicate if it a real cover, or just the placeholder
@@ -759,12 +855,12 @@ class MusicService : Service(), MediaPlayer.OnPreparedListener, MediaPlayer.OnEr
     private fun getAlbumImage(): Pair<Bitmap, Boolean> {
         if (File(mCurrTrack?.path ?: "").exists()) {
             try {
-                val mediaMetadataRetriever = MediaMetadataRetriever()
-                mediaMetadataRetriever.setDataSource(mCurrTrack!!.path)
-                val rawArt = mediaMetadataRetriever.embeddedPicture
-                if (rawArt != null) {
-                    val options = BitmapFactory.Options()
-                    try {
+                try {
+                    val mediaMetadataRetriever = MediaMetadataRetriever()
+                    mediaMetadataRetriever.setDataSource(mCurrTrack!!.path)
+                    val rawArt = mediaMetadataRetriever.embeddedPicture
+                    if (rawArt != null) {
+                        val options = BitmapFactory.Options()
                         val bitmap = BitmapFactory.decodeByteArray(rawArt, 0, rawArt.size, options)
                         if (bitmap != null) {
                             val resultBitmap = if (bitmap.height > mCoverArtHeight * 2) {
@@ -775,8 +871,9 @@ class MusicService : Service(), MediaPlayer.OnPreparedListener, MediaPlayer.OnEr
                             }
                             return Pair(resultBitmap, true)
                         }
-                    } catch (ignored: Exception) {
                     }
+                } catch (ignored: OutOfMemoryError) {
+                } catch (ignored: Exception) {
                 }
 
                 val trackParentDirectory = File(mCurrTrack!!.path).parent.trimEnd('/')
@@ -797,6 +894,7 @@ class MusicService : Service(), MediaPlayer.OnPreparedListener, MediaPlayer.OnEr
                     }
                 }
             } catch (e: Exception) {
+            } catch (e: Error) {
             }
         }
 
@@ -820,7 +918,7 @@ class MusicService : Service(), MediaPlayer.OnPreparedListener, MediaPlayer.OnEr
         }
 
         if (mHeadsetPlaceholder == null) {
-            mHeadsetPlaceholder = resources.getColoredBitmap(R.drawable.ic_headset, config.textColor)
+            mHeadsetPlaceholder = resources.getColoredBitmap(R.drawable.ic_headset, getProperTextColor())
         }
 
         return Pair(mHeadsetPlaceholder!!, false)
@@ -926,7 +1024,6 @@ class MusicService : Service(), MediaPlayer.OnPreparedListener, MediaPlayer.OnEr
     private fun trackStateChanged(isPlaying: Boolean) {
         handleProgressHandler(isPlaying)
         setupNotification()
-        mMediaSession?.isActive = isPlaying
         broadcastTrackStateChange(isPlaying)
 
         if (isPlaying) {
@@ -999,7 +1096,7 @@ class MusicService : Service(), MediaPlayer.OnPreparedListener, MediaPlayer.OnEr
     private fun handleMediaButton(mediaButtonEvent: Intent) {
         if (mediaButtonEvent.action == Intent.ACTION_MEDIA_BUTTON) {
             val swapPrevNext = config.swapPrevNext
-            val event = mediaButtonEvent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
+            val event = mediaButtonEvent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT) ?: return
             if (event.action == KeyEvent.ACTION_UP) {
                 when (event.keyCode) {
                     KeyEvent.KEYCODE_MEDIA_PLAY -> resumeTrack()

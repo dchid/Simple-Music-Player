@@ -12,9 +12,9 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getBoolean(SHUFFLE, true)
         set(shuffle) = prefs.edit().putBoolean(SHUFFLE, shuffle).apply()
 
-    var repeatTrack: Boolean
-        get() = prefs.getBoolean(REPEAT_TRACK, false)
-        set(repeat) = prefs.edit().putBoolean(REPEAT_TRACK, repeat).apply()
+    var playbackSetting: PlaybackSetting
+        get() = PlaybackSetting.values()[prefs.getInt(PLAYBACK_SETTING, PlaybackSetting.REPEAT_OFF.ordinal)]
+        set(playbackSetting) = prefs.edit().putInt(PLAYBACK_SETTING, playbackSetting.ordinal).apply()
 
     var autoplay: Boolean
         get() = prefs.getBoolean(AUTOPLAY, true)
@@ -44,6 +44,10 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getInt(PLAYLIST_TRACKS_SORTING, PLAYER_SORT_BY_TITLE)
         set(playlistTracksSorting) = prefs.edit().putInt(PLAYLIST_TRACKS_SORTING, playlistTracksSorting).apply()
 
+    var folderSorting: Int
+        get() = prefs.getInt(FOLDER_SORTING, PLAYER_SORT_BY_TITLE)
+        set(folderSorting) = prefs.edit().putInt(FOLDER_SORTING, folderSorting).apply()
+
     var artistSorting: Int
         get() = prefs.getInt(ARTIST_SORTING, PLAYER_SORT_BY_TITLE)
         set(artistSorting) = prefs.edit().putInt(ARTIST_SORTING, artistSorting).apply()
@@ -71,4 +75,16 @@ class Config(context: Context) : BaseConfig(context) {
     var playbackSpeedProgress: Int
         get() = prefs.getInt(PLAYBACK_SPEED_PROGRESS, -1)
         set(playbackSpeedProgress) = prefs.edit().putInt(PLAYBACK_SPEED_PROGRESS, playbackSpeedProgress).apply()
+
+    var wereTrackFoldersAdded: Boolean
+        get() = prefs.getBoolean(WERE_TRACK_FOLDERS_ADDED, false)
+        set(wereTrackFoldersAdded) = prefs.edit().putBoolean(WERE_TRACK_FOLDERS_ADDED, wereTrackFoldersAdded).apply()
+
+    var wasAllTracksPlaylistCreated: Boolean
+        get() = prefs.getBoolean(WAS_ALL_TRACKS_PLAYLIST_CREATED, false)
+        set(wasAllTracksPlaylistCreated) = prefs.edit().putBoolean(WAS_ALL_TRACKS_PLAYLIST_CREATED, wasAllTracksPlaylistCreated).apply()
+
+    var showTabs: Int
+        get() = prefs.getInt(SHOW_TABS, allTabsMask)
+        set(showTabs) = prefs.edit().putInt(SHOW_TABS, showTabs).apply()
 }

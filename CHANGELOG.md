@@ -1,6 +1,89 @@
 Changelog
 ==========
 
+Version 5.11.2 *(2022-04-15)*
+----------------------------
+
+ * Make sure the current track bar doesn't cover up anything
+ * Fixed an Android 12 related crash
+ * Added some stability and translation improvements
+
+Version 5.11.1 *(2022-04-14)*
+----------------------------
+
+ * Added some stability, translation and UX improvements
+
+Version 5.11.0 *(2022-04-03)*
+----------------------------
+
+ * Added Material You theme support on Android 12+
+ * Make sure the playback speed is applied to new tracks too
+ * Fixed some third party intent related glitches
+ * Added many stability, translation and UX improvements
+
+Version 5.10.1 *(2022-03-16)*
+----------------------------
+
+ * Fixing a crash at deleting files
+
+Version 5.10.0 *(2022-03-15)*
+----------------------------
+
+ * Reworked file fetching, should improve performance a lot
+ * Added Privacy policy
+ * Added some translation, stability and UX improvements
+
+Version 5.9.1 *(2022-02-09)*
+----------------------------
+
+ * Properly update song info at the media session, fixing bluetooth devices and maybe some lockscreens
+ * Add items in the queue in the proper order
+ * Show track count at Albums tab
+ * Added some translation, stability and UX improvements
+
+Version 5.9.0 *(2022-01-05)*
+----------------------------
+
+ * Added a Folders tab on Android 10+
+ * Added Search at the playlists and tracks screen
+ * Fixed a glitch at songs not starting playback properly
+ * Allow customizing visible tabs
+ * Added some stability, translation and UX improvements
+
+Version 5.8.2 *(2021-12-15)*
+----------------------------
+
+ * Added some stability, translation and UX improvements
+
+Version 5.8.1 *(2021-11-16)*
+----------------------------
+
+ * Redesigned some parts of the app
+ * Allow editing some file metadata
+ * Changed the side fastscroller to make it more reliable
+ * Some other stability, translation and UI improvements
+
+Version 5.8.0 *(2021-10-02)*
+----------------------------
+
+ * Fixed some Android 11 file operation related issues
+ * Added some UX and translation improvements
+
+Version 5.7.1 *(2021-08-29)*
+----------------------------
+
+ * Add new repetition options for repeating the current song and stopping after it
+ * Properly show artists and titles with long names
+ * Properly resume the tracks if they have been paused by the app during a call etc
+ * Some translation, stability and UX improvements
+
+Version 5.7.0 *(2021-05-11)*
+----------------------------
+
+ * Cache artists and albums for quicker loading
+ * Some widget reliability improvements
+ * Adding some translation and stability improvements
+
 Version 5.6.5 *(2021-04-15)*
 ----------------------------
 

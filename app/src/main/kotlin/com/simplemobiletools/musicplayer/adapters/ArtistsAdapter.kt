@@ -9,12 +9,12 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.CenterCrop
 import com.bumptech.glide.load.resource.bitmap.RoundedCorners
 import com.bumptech.glide.request.RequestOptions
+import com.qtalk.recyclerviewfastscroller.RecyclerViewFastScroller
 import com.simplemobiletools.commons.adapters.MyRecyclerViewAdapter
 import com.simplemobiletools.commons.dialogs.ConfirmationDialog
 import com.simplemobiletools.commons.extensions.getColoredDrawableWithColor
 import com.simplemobiletools.commons.extensions.highlightTextPart
 import com.simplemobiletools.commons.helpers.ensureBackgroundThread
-import com.simplemobiletools.commons.views.FastScroller
 import com.simplemobiletools.commons.views.MyRecyclerView
 import com.simplemobiletools.musicplayer.R
 import com.simplemobiletools.musicplayer.activities.SimpleActivity
@@ -24,8 +24,8 @@ import com.simplemobiletools.musicplayer.models.Track
 import kotlinx.android.synthetic.main.item_artist.view.*
 import java.util.*
 
-class ArtistsAdapter(activity: SimpleActivity, var artists: ArrayList<Artist>, recyclerView: MyRecyclerView, fastScroller: FastScroller, itemClick: (Any) -> Unit) :
-        MyRecyclerViewAdapter(activity, recyclerView, fastScroller, itemClick) {
+class ArtistsAdapter(activity: SimpleActivity, var artists: ArrayList<Artist>, recyclerView: MyRecyclerView, itemClick: (Any) -> Unit) :
+    MyRecyclerViewAdapter(activity, recyclerView, itemClick), RecyclerViewFastScroller.OnPopupTextUpdate {
 
     private var textToHighlight = ""
     private val placeholder = resources.getColoredDrawableWithColor(R.drawable.ic_headset_padded, textColor)
@@ -60,6 +60,7 @@ class ArtistsAdapter(activity: SimpleActivity, var artists: ArrayList<Artist>, r
             R.id.cab_add_to_playlist -> addToPlaylist()
             R.id.cab_add_to_queue -> addToQueue()
             R.id.cab_delete -> askConfirmDelete()
+            R.id.cab_select_all -> selectAll()
         }
     }
 
@@ -122,6 +123,8 @@ class ArtistsAdapter(activity: SimpleActivity, var artists: ArrayList<Artist>, r
                     albums.forEach { album ->
                         tracks.addAll(activity.getAlbumTracksSync(album.id))
                     }
+
+                    activity.artistDAO.deleteArtist(artist.id)
                 }
 
                 activity.deleteTracks(tracks) {
@@ -151,13 +154,12 @@ class ArtistsAdapter(activity: SimpleActivity, var artists: ArrayList<Artist>, r
             textToHighlight = highlightText
             notifyDataSetChanged()
         }
-        fastScroller?.measureRecyclerView()
     }
 
     private fun setupView(view: View, artist: Artist) {
         view.apply {
             artist_frame?.isSelected = selectedKeys.contains(artist.hashCode())
-            artist_title.text = if (textToHighlight.isEmpty()) artist.title else artist.title.highlightTextPart(textToHighlight, adjustedPrimaryColor)
+            artist_title.text = if (textToHighlight.isEmpty()) artist.title else artist.title.highlightTextPart(textToHighlight, properPrimaryColor)
             artist_title.setTextColor(textColor)
 
             val albums = resources.getQuantityString(R.plurals.albums_plural, artist.albumCnt, artist.albumCnt)
@@ -178,4 +180,6 @@ class ArtistsAdapter(activity: SimpleActivity, var artists: ArrayList<Artist>, r
                 .into(findViewById(R.id.artist_image))
         }
     }
+
+    override fun onChange(position: Int) = artists.getOrNull(position)?.getBubbleText() ?: ""
 }

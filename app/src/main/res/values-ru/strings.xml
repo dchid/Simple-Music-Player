@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Simple Music Player</string>
     <string name="app_launcher_name">Проигрыватель музыки</string>
@@ -5,23 +6,18 @@
     <string name="rename_song">Переименовать композицию</string>
     <string name="rename_song_error">Во время переименования произошла ошибка</string>
     <string name="rename_song_empty">Пожалуйста, заполните все поля</string>
-    <string name="enable_song_repetition">Повторять текущую композицию</string>
-    <string name="disable_song_repetition">Больше не повторять</string>
-    <string name="song_repetition_enabled">Повтор текущей композиции включён</string>
-    <string name="song_repetition_disabled">Повтор текущей композиции выключен</string>
+    <string name="repeat_off">Повтор выключен</string>
+    <string name="repeat_song">Повторять текущую композицию</string>
+    <string name="repeat_playlist">Повторять всё</string>
+    <string name="stop_playback_after_current_song">Остановить воспроизведение после текущей композиции</string>
     <string name="enable_shuffle">Играть в случайном порядке</string>
     <string name="disable_shuffle">Играть подряд</string>
     <string name="shuffle_enabled">Воспроизведение в случайном порядке включено</string>
     <string name="shuffle_disabled">Воспроизведение в случайном порядке выключено</string>
-    <string name="enable_autoplay">Играть автоматически</string>
-    <string name="disable_autoplay">Играть вручную</string>
-    <string name="autoplay_enabled">Автоматическое воспроизведение включено</string>
-    <string name="autoplay_disabled">Автоматическое воспроизведение выключено</string>
     <string name="sleep_timer">Таймер сна</string>
-    <string name="volume">Volume</string>
-    <string name="playback_speed">Playback speed</string>
-    <string name="loading_files">Loading files…</string>
-
+    <string name="volume">Громкость</string>
+    <string name="playback_speed">Скорость воспроизведения</string>
+    <string name="loading_files">Загрузка файлов…</string>
     <!-- Playlists -->
     <string name="add_file_to_playlist">Добавить файл в плейлист</string>
     <string name="add_folder_to_playlist">Добавить папку в плейлист</string>
@@ -32,12 +28,12 @@
     <string name="playlist_name_exists">Плейлист с таким названием уже существует</string>
     <string name="remove_playlist">Удалить плейлист</string>
     <string name="remove_playlist_description">Будут удалены только выбранные плейлисты, а не сами файлы.</string>
-    <string name="remove_playlist_description_placeholder">Будет удалён только плейлист «%s», а не сами файлы.</string>
+    <string name="remove_playlist_description_placeholder">Будет удалён только плейлист \"%s\", а не сами файлы.</string>
     <string name="remove_from_playlist">Удалить из плейлиста</string>
-    <string name="remove_from_playlist_description">Композиции будут удалены только из плейлиста «%s», сами файлы удалены не будут.</string>
+    <string name="remove_from_playlist_description">Композиции будут удалены только из плейлиста \"%s\", сами файлы удалены не будут.</string>
     <string name="delete_the_files_too">Удалить файлы тоже</string>
     <string name="open_playlist">Открыть плейлист</string>
-    <string name="all_songs_cannot_be_deleted">Плейлист «Все композиции» не может быть удалён</string>
+    <string name="all_songs_cannot_be_deleted">Плейлист \"Все композиции\" не может быть удалён</string>
     <string name="empty_playlist">Текущий плейлист пуст</string>
     <string name="fetching_songs">Загрузка композиций…</string>
     <string name="all_songs">Все композиции</string>
@@ -50,45 +46,41 @@
     <string name="show_album_cover">Показывать обложку альбома на главном экране</string>
     <string name="all_tracks">Все композиции</string>
     <string name="add_to_playlist">Добавить в плейлист</string>
-    <string name="create_playlist_label">Вы можете создать новый плейлист, выбрав нужных исполнителей, альбомы или композиции используя Меню -> Добавить в плейлист.</string>
-
+    <string name="create_playlist_label">Вы можете создать новый плейлист, выбрав нужных исполнителей, альбомы или композиции используя \"Меню\" → \"Добавить в плейлист\".</string>
     <!-- Sorting -->
-    <string name="track_count">Track Count</string>
-    <string name="album_count">Album Count</string>
-    <string name="artist_name">Artist Name</string>
+    <string name="track_count">Количество композиций</string>
+    <string name="album_count">Количество альбомов</string>
+    <string name="artist_name">Имя исполнителя</string>
     <string name="year">Год</string>
-
     <!-- Artists -->
     <string name="artists">Исполнители</string>
+    <string name="folders">Папки</string>
     <string name="albums">Альбомы</string>
     <plurals name="albums_plural">
-        <item quantity="one">%d Альбом</item>
-        <item quantity="few">%d Альбома</item>        
-        <item quantity="other">%d Альбомов</item>
+        <item quantity="one">%d альбом</item>
+        <item quantity="few">%d альбома</item>
+        <item quantity="many">%d альбомов</item>
+        <item quantity="other">%d альбомов</item>
     </plurals>
-
     <string name="tracks">Композиции</string>
     <plurals name="tracks_plural">
-        <item quantity="one">%d Композиция</item>
-        <item quantity="few">%d Композиции</item>
-        <item quantity="other">%d Композиций</item>
+        <item quantity="one">%d композиция</item>
+        <item quantity="few">%d композиции</item>
+        <item quantity="many">%d композиций</item>
+        <item quantity="other">%d композиций</item>
     </plurals>
-
     <!-- Queue -->
     <string name="next_track">Следующее:</string>
     <string name="track_queue">Очередь композиций</string>
     <string name="add_to_queue">Добавить в очередь</string>
-    <string name="remove_from_queue">Добавить в очередь</string>
+    <string name="remove_from_queue">Удалить из очереди</string>
     <string name="create_playlist_from_queue">Создать плейлист из очереди</string>
-
     <!-- Settings -->
     <string name="equalizer">Эквалайзер</string>
-    <string name="swap_prev_next">Поменять местами кнопки previous/next на гарнитуре</string>
-
+    <string name="swap_prev_next">Поменять местами кнопки \"Previous\"/\"Next\" на гарнитуре</string>
     <!-- FAQ -->
-    <string name="faq_1_title">Как я могу перемотать композицию?</string>
-    <string name="faq_1_text">Вы можете нажать на текст текущей или общей длительности воспроизведения рядом с ползунком — это переместит воспроизведение либо назад, либо вперед.</string>
-
+    <string name="faq_1_title">Как я могу перемотать композицию\?</string>
+    <string name="faq_1_text">Вы можете нажать на текст текущей или общей длительности воспроизведения рядом с ползунком — это переместит воспроизведение либо назад, либо вперёд.</string>
     <!-- Strings displayed only on Google Playstore. Optional, but good to have -->
     <!-- App title has to have less than 50 characters. If you cannot squeeze it, just remove a part of it -->
     <string name="app_title">Simple Music Player - Крутой плеер для ваших песен</string>
@@ -99,7 +91,7 @@
 
         Он предлагает эксклюзивные дополнительные функции, такие как поиск и отображение обложек альбомов, таймер сна и многие другие настройки. Этот элегантный музыкальный проигрыватель позволяет создавать удобные списки воспроизведения и управлять ими по своему усмотрению. 
 
-        Полная поддержка плейлистов, можно добавлять отдельные файлы или целые папки. If you won\'t like a file, you can either just remove it from a playlist, or delete the actual file altogether.Если вам не понравится файл, вы можете удалить из плейлиста или удалить сам файл. 
+        Полная поддержка плейлистов, можно добавлять отдельные файлы или целые папки. Если вам не понравится файл в плейлисте, вы сможете удалить его из плейлиста или удалить сам файл. 
 
         Надежный таймер сна поможет отложить выключение устройства. 
 
@@ -107,21 +99,21 @@
 
         Доступен на многих языках, предлагается несколько различных эквалайзеров.
 
-        Легко проверяйте свойства файла, такие как размер, продолжительность, последнее изменение и т.д
+        Легко проверяйте свойства файла, такие как размер, продолжительность, последнее изменение и т.д.
 
         Модифицируйте EXIF данные файла например название песни и исполнителя.
 
-        Быстро обменивайтесь файлами с друзьями в социальных сетях, по электронной почте и т.д
+        Быстро обменивайтесь файлами с друзьями в социальных сетях, по электронной почте и т.д.
 
         Этот стильный музыкальный проигрыватель содержит виджет с настраиваемым цветом текста, альфа-каналом и цветом фона для легкого доступа и управления.
 
-        Приложение также правильно обрабатывает сторонние причины воспроизведения отдельных аудиофайлов, поэтому оно также может помочь при установке мелодии звонка.
+        К тому же приложение правильно обрабатывает сторонние "намерения" (intents) для воспроизведения отдельных аудиофайлов, поэтому оно также может помочь при установке мелодии звонка.
 
-        По умолчанию он имеет материальный дизайн и темную тему, что обеспечивает хороший  пользовательский опыт и простоту использования. Отсутствие доступа в интернет дает вам больше конфиденциальности, безопасности и стабильности, чем другие приложения.
+        По умолчанию оно имеет материальный дизайн и темную тему, что обеспечивает хороший  пользовательский опыт и простоту использования. Отсутствие у приложения доступа в интернет дает вам больше конфиденциальности, безопасности и стабильности, чем с другими приложениями.
 
         Это приложение не показывает рекламу и не запрашивает лишние разрешения. У него полностью открытый исходный код и настраиваемые цвета оформления.
 
-        <b>Ознакомьтесь с полным набором инструментов серии Simple здесь:</b>
+        <b>Ознакомьтесь с полным набором приложений Simple Tools здесь:</b>
         https://www.simplemobiletools.com
 
         <b>Facebook:</b>
@@ -130,7 +122,6 @@
         <b>Reddit:</b>
         https://www.reddit.com/r/SimpleMobileTools
     </string>
-
     <!--
         Haven't found some strings? There's more at
         https://github.com/SimpleMobileTools/Simple-Commons/tree/master/commons/src/main/res

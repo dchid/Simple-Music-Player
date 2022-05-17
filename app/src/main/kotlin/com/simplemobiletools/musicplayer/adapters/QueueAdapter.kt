@@ -11,15 +11,12 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.CenterCrop
 import com.bumptech.glide.load.resource.bitmap.RoundedCorners
 import com.bumptech.glide.request.RequestOptions
+import com.qtalk.recyclerviewfastscroller.RecyclerViewFastScroller
 import com.simplemobiletools.commons.adapters.MyRecyclerViewAdapter
-import com.simplemobiletools.commons.extensions.applyColorFilter
-import com.simplemobiletools.commons.extensions.getAdjustedPrimaryColor
-import com.simplemobiletools.commons.extensions.getColoredDrawableWithColor
-import com.simplemobiletools.commons.extensions.getFormattedDuration
+import com.simplemobiletools.commons.extensions.*
 import com.simplemobiletools.commons.interfaces.ItemMoveCallback
 import com.simplemobiletools.commons.interfaces.ItemTouchHelperContract
 import com.simplemobiletools.commons.interfaces.StartReorderDragListener
-import com.simplemobiletools.commons.views.FastScroller
 import com.simplemobiletools.commons.views.MyRecyclerView
 import com.simplemobiletools.musicplayer.R
 import com.simplemobiletools.musicplayer.activities.SimpleActivity
@@ -35,8 +32,8 @@ import com.simplemobiletools.musicplayer.services.MusicService
 import kotlinx.android.synthetic.main.item_track_queue.view.*
 import java.util.*
 
-class QueueAdapter(activity: SimpleActivity, val items: ArrayList<Track>, recyclerView: MyRecyclerView, fastScroller: FastScroller, itemClick: (Any) -> Unit) :
-        MyRecyclerViewAdapter(activity, recyclerView, fastScroller, itemClick), ItemTouchHelperContract {
+class QueueAdapter(activity: SimpleActivity, val items: ArrayList<Track>, recyclerView: MyRecyclerView, itemClick: (Any) -> Unit) :
+    MyRecyclerViewAdapter(activity, recyclerView, itemClick), ItemTouchHelperContract, RecyclerViewFastScroller.OnPopupTextUpdate {
 
     private val placeholder = resources.getColoredDrawableWithColor(R.drawable.ic_headset, textColor)
     private var startReorderDragListener: StartReorderDragListener
@@ -79,6 +76,7 @@ class QueueAdapter(activity: SimpleActivity, val items: ArrayList<Track>, recycl
         when (id) {
             R.id.cab_remove_from_queue -> removeFromQueue()
             R.id.cab_add_to_playlist -> addToPlaylist()
+            R.id.cab_select_all -> selectAll()
         }
     }
 
@@ -141,7 +139,7 @@ class QueueAdapter(activity: SimpleActivity, val items: ArrayList<Track>, recycl
             track_queue_title.text = track.title
 
             arrayOf(track_queue_title, track_queue_duration).forEach {
-                val color = if (track == MusicService.mCurrTrack) context.getAdjustedPrimaryColor() else textColor
+                val color = if (track == MusicService.mCurrTrack) context.getProperPrimaryColor() else textColor
                 it.setTextColor(color)
             }
 
@@ -186,4 +184,6 @@ class QueueAdapter(activity: SimpleActivity, val items: ArrayList<Track>, recycl
     override fun onRowClear(myViewHolder: ViewHolder?) {}
 
     override fun onRowSelected(myViewHolder: ViewHolder?) {}
+
+    override fun onChange(position: Int) = items.getOrNull(position)?.getBubbleText() ?: ""
 }

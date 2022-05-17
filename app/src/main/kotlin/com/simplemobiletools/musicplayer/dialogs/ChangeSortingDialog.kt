@@ -22,9 +22,10 @@ class ChangeSortingDialog(val activity: Activity, val location: Int, val callbac
     init {
         currSorting = when (location) {
             TAB_PLAYLISTS -> config.playlistSorting
+            TAB_FOLDERS -> config.folderSorting
             TAB_ARTISTS -> config.artistSorting
             TAB_ALBUMS -> config.albumSorting
-            ACTIVITY_PLAYLIST -> config.playlistTracksSorting
+            ACTIVITY_PLAYLIST_FOLDER -> config.playlistTracksSorting
             else -> config.trackSorting
         }
 
@@ -42,7 +43,7 @@ class ChangeSortingDialog(val activity: Activity, val location: Int, val callbac
     private fun setupSortRadio() {
         val radioItems = ArrayList<RadioItem>()
         when (location) {
-            TAB_PLAYLISTS -> {
+            TAB_PLAYLISTS, TAB_FOLDERS -> {
                 radioItems.add(RadioItem(0, activity.getString(R.string.title), PLAYER_SORT_BY_TITLE))
                 radioItems.add(RadioItem(1, activity.getString(R.string.track_count), PLAYER_SORT_BY_TRACK_COUNT))
             }
@@ -56,7 +57,7 @@ class ChangeSortingDialog(val activity: Activity, val location: Int, val callbac
                 radioItems.add(RadioItem(1, activity.getString(R.string.artist_name), PLAYER_SORT_BY_ARTIST_TITLE))
                 radioItems.add(RadioItem(2, activity.getString(R.string.year), PLAYER_SORT_BY_YEAR))
             }
-            TAB_TRACKS, ACTIVITY_PLAYLIST -> {
+            TAB_TRACKS, ACTIVITY_PLAYLIST_FOLDER -> {
                 radioItems.add(RadioItem(0, activity.getString(R.string.title), PLAYER_SORT_BY_TITLE))
                 radioItems.add(RadioItem(1, activity.getString(R.string.artist), PLAYER_SORT_BY_ARTIST_TITLE))
                 radioItems.add(RadioItem(2, activity.getString(R.string.duration), PLAYER_SORT_BY_DURATION))
@@ -98,10 +99,11 @@ class ChangeSortingDialog(val activity: Activity, val location: Int, val callbac
         if (currSorting != sorting) {
             when (location) {
                 TAB_PLAYLISTS -> config.playlistSorting = sorting
+                TAB_FOLDERS -> config.folderSorting = sorting
                 TAB_ARTISTS -> config.artistSorting = sorting
                 TAB_ALBUMS -> config.albumSorting = sorting
                 TAB_TRACKS -> config.trackSorting = sorting
-                ACTIVITY_PLAYLIST -> config.playlistTracksSorting = sorting
+                ACTIVITY_PLAYLIST_FOLDER -> config.playlistTracksSorting = sorting
             }
 
             callback()
